@@ -1,0 +1,22 @@
+@page "/"
+@inject GoogleAuthService Auth
+@inject GoogleDriveService Drive
+@inject NavigationManager Nav
+<h1>Dashboard</h1>
+@if(!signedIn){<section class="login-card"><div class="brand-mark big">T</div><h2>Welcome to TaskFlow</h2><p>Sign in with Google. Your task data is stored in your private Google Drive app storage.</p><button @onclick="Login">Continue with Google</button></section>}
+else if(loading){<p>Loading your dashboard…</p>}
+else{
+<div class="dashboard-cards"><article><span>Monthly Completed</span><strong>@Completed</strong></article><article><span>Pending Tasks</span><strong>@Pending</strong></article><article><span>Payment Received</span><strong>₹@Received.ToString("N0")</strong></article><article><span>Payment Pending</span><strong>₹@PaymentPending.ToString("N0")</strong></article></div>
+<div class="quick-actions"><a class="quick-card" href="task"><b>＋</b><span><strong>Add Task</strong><small>Create a new task</small></span></a><a class="quick-card" href="tasks"><b>☷</b><span><strong>View Tasks</strong><small>Filter and manage records</small></span></a></div>
+<section class="chart-grid"><article class="chart-card"><h2>Monthly Payments</h2><canvas id="payments"></canvas></article><article class="chart-card"><h2>Monthly Task Status</h2><canvas id="statuses"></canvas></article></section>}
+@code{
+ List<TaskItem> tasks=new(); bool signedIn,loading;
+ int Completed=>Month.Count(x=>x.Status==TaskState.Complete); int Pending=>Month.Count(x=>x.Status!=TaskState.Complete);
+ decimal Received=>Month.Where(x=>x.PaymentStatus==PaymentState.Received).Sum(x=>x.CommercialAmount);
+ decimal PaymentPending=>Month.Where(x=>x.PaymentStatus==PaymentState.NotReceived).Sum(x=>x.CommercialAmount);
+ IEnumerable<TaskItem> Month=>tasks.Where(x=>x.StartDate.Month==DateTime.Today.Month&&x.StartDate.Year==DateTime.Today.Year);
+ protected override async Task OnAfterRenderAsync(bool first){if(!first)return;signedIn=await Auth.IsSignedInAsync();if(signedIn)await Load();StateHasChanged();}
+ async Task Login(){var t=await Auth.SignInAsync();signedIn=!string.IsNullOrEmpty(t);if(signedIn)await Load();}
+ async Task Load(){loading=true;StateHasChanged();tasks=await Drive.GetTasksAsync();loading=false;await JS.InvokeVoidAsync("taskFlowCharts.render",tasks);}
+ [Inject] IJSRuntime JS {get;set;}=default!;
+}

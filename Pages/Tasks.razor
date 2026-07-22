@@ -1,0 +1,14 @@
+@page "/tasks"
+@inject GoogleDriveService Drive
+@inject GoogleAuthService Auth
+@inject NavigationManager Nav
+<h1>Tasks</h1>
+@if(!ready){<p>Loading…</p>}else{
+<section class="panel filters"><select @bind="status"><option value="">All statuses</option>@foreach(var x in Enum.GetNames<TaskState>()){<option>@x</option>}</select><select @bind="payment"><option value="">All payments</option>@foreach(var x in Enum.GetNames<PaymentState>()){<option>@x</option>}</select></section>
+<div class="task-cards">@foreach(var t in Filtered){<article class="task-card"><div><strong>@t.Name</strong><p>@t.Details</p><small>@t.Status · @(t.EndDate?.ToString("dd MMM yyyy")??"No closing date")</small></div><div><b>₹@t.CommercialAmount.ToString("N0")</b><small>@t.PaymentStatus</small><div class="actions"><a href="@($"task/{t.Id}")">Edit</a><button class="danger" @onclick="()=>Delete(t.Id)">Delete</button></div></div></article>}</div>}
+@code{
+ List<TaskItem> tasks=new(); string status="",payment=""; bool ready;
+ IEnumerable<TaskItem> Filtered=>tasks.Where(x=>status==""||x.Status.ToString()==status).Where(x=>payment==""||x.PaymentStatus.ToString()==payment).OrderByDescending(x=>x.StartDate);
+ protected override async Task OnInitializedAsync(){if(!await Auth.IsSignedInAsync()){Nav.NavigateTo("");return;}tasks=await Drive.GetTasksAsync();ready=true;}
+ async Task Delete(Guid id){tasks.RemoveAll(x=>x.Id==id);await Drive.SaveTasksAsync(tasks);}
+}
