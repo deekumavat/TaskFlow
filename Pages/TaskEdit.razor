@@ -1,18 +1,120 @@
 @page "/task"
 @page "/task/{Id:guid}"
+
 @inject GoogleDriveService Drive
 @inject GoogleAuthService Auth
 @inject NavigationManager Nav
-<h1>@(Id.HasValue?"Edit Task":"Add Task")</h1>
-<EditForm Model="item" OnValidSubmit="Save"><div class="panel form-grid">
-<label>Task name<InputText @bind-Value="item.Name"/></label><label class="wide">Details<InputTextArea @bind-Value="item.Details"/></label>
-<label>Start date<InputDate @bind-Value="item.StartDate"/></label><label>Closing date<InputDate @bind-Value="item.EndDate"/></label>
-<label>Status<InputSelect @bind-Value="item.Status">@foreach(var x in Enum.GetValues<TaskState>()){<option value="@x">@x</option>}</InputSelect></label>
-<label>Commercial amount<InputNumber @bind-Value="item.CommercialAmount"/></label>
-<label>Payment status<InputSelect @bind-Value="item.PaymentStatus">@foreach(var x in Enum.GetValues<PaymentState>()){<option value="@x">@x</option>}</InputSelect></label>
-<label>Received date<InputDate @bind-Value="item.ReceivedDate"/></label><div class="wide"><button>Save Task</button></div></div></EditForm>
-@code{
- [Parameter] public Guid? Id {get;set;} TaskItem item=new();
- protected override async Task OnParametersSetAsync(){if(!await Auth.IsSignedInAsync()){Nav.NavigateTo("");return;}if(Id.HasValue)item=(await Drive.GetTasksAsync()).FirstOrDefault(x=>x.Id==Id)??new();}
- async Task Save(){var l=await Drive.GetTasksAsync();if(item.PaymentStatus==PaymentState.Received&&item.ReceivedDate==null)item.ReceivedDate=DateTime.Today;if(item.PaymentStatus==PaymentState.NotReceived)item.ReceivedDate=null;var old=l.FirstOrDefault(x=>x.Id==item.Id);if(old==null)l.Add(item);else l[l.IndexOf(old)]=item;await Drive.SaveTasksAsync(l);Nav.NavigateTo("tasks");}
+
+<h1>@(Id.HasValue ? "Edit Task" : "Add Task")</h1>
+
+<EditForm Model="@item" OnValidSubmit="@Save">
+    <div class="panel form-grid">
+
+        <label>
+            Task name
+            <InputText @bind-Value="@item.Name" />
+        </label>
+
+        <label class="wide">
+            Details
+            <InputTextArea @bind-Value="@item.Details" />
+        </label>
+
+        <label>
+            Start date
+            <InputDate @bind-Value="@item.StartDate" />
+        </label>
+
+        <label>
+            Closing date
+            <InputDate @bind-Value="@item.EndDate" />
+        </label>
+
+        <label>
+            Status
+            <InputSelect @bind-Value="@item.Status">
+                @foreach (var status in Enum.GetValues<TaskState>())
+                {
+                    <option value="@status">@status</option>
+                }
+            </InputSelect>
+        </label>
+
+        <label>
+            Commercial amount
+            <InputNumber @bind-Value="@item.CommercialAmount" />
+        </label>
+
+        <label>
+            Payment status
+            <InputSelect @bind-Value="@item.PaymentStatus">
+                @foreach (var payment in Enum.GetValues<PaymentState>())
+                {
+                    <option value="@payment">@payment</option>
+                }
+            </InputSelect>
+        </label>
+
+        <label>
+            Received date
+            <InputDate @bind-Value="@item.ReceivedDate" />
+        </label>
+
+        <div class="wide">
+            <button type="submit">Save Task</button>
+        </div>
+
+    </div>
+</EditForm>
+
+@code {
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    private TaskItem item = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!await Auth.IsSignedInAsync())
+        {
+            Nav.NavigateTo("");
+            return;
+        }
+
+        if (Id.HasValue)
+        {
+            item = (await Drive.GetTasksAsync())
+                .FirstOrDefault(x => x.Id == Id.Value) ?? new TaskItem();
+        }
+    }
+
+    private async Task Save()
+    {
+        var tasks = await Drive.GetTasksAsync();
+
+        if (item.PaymentStatus == PaymentState.Received &&
+            item.ReceivedDate == null)
+        {
+            item.ReceivedDate = DateTime.Today;
+        }
+
+        if (item.PaymentStatus == PaymentState.NotReceived)
+        {
+            item.ReceivedDate = null;
+        }
+
+        var existing = tasks.FirstOrDefault(x => x.Id == item.Id);
+
+        if (existing == null)
+        {
+            tasks.Add(item);
+        }
+        else
+        {
+            tasks[tasks.IndexOf(existing)] = item;
+        }
+
+        await Drive.SaveTasksAsync(tasks);
+        Nav.NavigateTo("tasks");
+    }
 }
