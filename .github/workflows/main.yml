@@ -1,0 +1,35 @@
+name: Deploy Blazor WASM to GitHub Pages
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet publish TaskFlow.Wasm.csproj -c Release -o release
+      - name: Fix GitHub Pages base path
+        run: |
+          REPO="${{ github.event.repository.name }}"
+          sed -i "s|<head>|<head><base href=\"/$REPO/\" />|" release/wwwroot/index.html
+          touch release/wwwroot/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: release/wwwroot
+      - id: deployment
+        uses: actions/deploy-pages@v4
